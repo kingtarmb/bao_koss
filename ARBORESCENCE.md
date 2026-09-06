@@ -1,0 +1,32 @@
+# Arborescence BÂO-KOSS
+
+lib/
+  main.dart
+  core/
+    constants/
+    database/
+    network/
+    routes/
+    sync/
+    theme/
+  features/
+    auth/presentation/
+    dashboard/presentation/
+    workers/presentation/
+    farmers/presentation/
+    missions/presentation/
+    cpa/presentation/
+    badges/presentation/
+    gps/
+    payments/presentation/
+    incidents/presentation/
+    notifications/
+  shared/
+    models/
+    services/
+    widgets/
+assets/
+  images/
+  icons/
+  audio/
+test/

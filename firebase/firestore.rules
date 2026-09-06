@@ -1,0 +1,19 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function isAdmin() { return signedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'; }
+    match /users/{uid} {
+      allow read, create, update: if signedIn() && request.auth.uid == uid || isAdmin();
+      allow delete: if isAdmin();
+      match /{sub=**} { allow read, write: if signedIn() && (request.auth.uid == uid || isAdmin()); }
+    }
+    match /missions/{id} { allow read: if signedIn(); allow create: if signedIn(); allow update: if signedIn() && (resource.data.farmerId == request.auth.uid || isAdmin()); allow delete: if isAdmin(); }
+    match /attendance/{id} { allow create: if signedIn(); allow read: if signedIn() && (resource.data.userId == request.auth.uid || isAdmin()); allow update, delete: if isAdmin(); }
+    match /payments/{id} { allow read: if signedIn() && (resource.data.userId == request.auth.uid || isAdmin()); allow write: if isAdmin(); }
+    match /trainings/{id} { allow read: if signedIn(); allow write: if isAdmin(); }
+    match /evaluations/{id} { allow read: if signedIn() && (resource.data.userId == request.auth.uid || isAdmin()); allow write: if isAdmin(); }
+    match /incidents/{id} { allow create: if signedIn(); allow read: if isAdmin() || resource.data.userId == request.auth.uid; allow update, delete: if isAdmin(); }
+    match /{document=**} { allow read, write: if false; }
+  }
+}

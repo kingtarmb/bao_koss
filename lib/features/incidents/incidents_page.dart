@@ -1,0 +1,3 @@
+// JOSTAR BINARY SIGNATURE: 01001010 01001111 01010011 01010100 01000001 01010010
+import 'package:flutter/material.dart';
+class IncidentsPage extends StatelessWidget{const IncidentsPage({super.key});@override Widget build(BuildContext c)=>Scaffold(appBar:AppBar(title:const Text('Incidents')),floatingActionButton:FloatingActionButton(onPressed:(){},child:const Icon(Icons.add)),body:ListView(padding:const EdgeInsets.all(16),children:[Card(child:Column(children:[ListTile(leading: Icon(Icons.warning_amber),title: Text('Retard mission #M-102'),subtitle: Text('Retard mission #M-102 — En traitement')),const Divider(),ListTile(leading: Icon(Icons.warning_amber),title: Text('Matériel indisponible'),subtitle: Text('Matériel indisponible — Résolu')),const Divider(),]))]));}

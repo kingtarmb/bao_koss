@@ -1,0 +1,7 @@
+// JOSTAR BINARY SIGNATURE: 01001010 01001111 01010011 01010100 01000001 01010010
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import '../../shared/widgets/bottom_nav.dart';
+import '../../shared/widgets/page_header.dart';
+class BadgesPage extends StatelessWidget{const BadgesPage({super.key});@override Widget build(BuildContext context){final uid=FirebaseAuth.instance.currentUser?.uid;return Scaffold(body:SafeArea(child:Column(children:[const PageHeader(title:'Mes badges'),Expanded(child:StreamBuilder<QuerySnapshot<Map<String,dynamic>>>(stream:FirebaseFirestore.instance.collection('users').doc(uid).collection('badges').where('status',isEqualTo:'validated').snapshots(),builder:(context,s){if(!s.hasData)return const Center(child:CircularProgressIndicator());if(s.data!.docs.isEmpty)return const Center(child:Padding(padding:EdgeInsets.all(24),child:Text('Aucun badge validé. Suivez une formation, réussissez l’évaluation puis obtenez votre certification.')));return ListView(padding:const EdgeInsets.all(14),children:s.data!.docs.map((d){final x=d.data();return Card(child:ListTile(leading:const Icon(Icons.workspace_premium),title:Text('${x['name']??'Badge'}'),subtitle:Text('Certification : ${x['certifiedAt']??''}'),trailing:Text('${x['score']??''}%')));}).toList());})),])) ,bottomNavigationBar:const BaoBottomNav(selectedIndex:4));}}

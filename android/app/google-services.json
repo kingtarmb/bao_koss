@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "692244658942",
+    "project_id": "boa-koss",
+    "storage_bucket": "boa-koss.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:692244658942:android:2b55aa2edd4db64dd243af",
+        "android_client_info": {
+          "package_name": "com.example.bao_koss"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAiFJtUTtYWAxCRdNjctFmt8Z8vsih4t_M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

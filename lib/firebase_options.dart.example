@@ -1,0 +1,27 @@
+// JOSTAR BINARY SIGNATURE: 01001010 01001111 01010011 01010100 01000001 01010010
+
+// MODELE : lance `flutterfire configure` pour générer le vrai fichier.
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
+
+class DefaultFirebaseOptions {
+  static FirebaseOptions get currentPlatform {
+    if (kIsWeb) {
+      return const FirebaseOptions(
+        apiKey: 'REPLACE_WITH_FIREBASE_API_KEY',
+        appId: 'REPLACE_WITH_FIREBASE_APP_ID',
+        messagingSenderId: 'REPLACE_WITH_SENDER_ID',
+        projectId: 'boa-koss',
+        authDomain: 'boa-koss.firebaseapp.com',
+        storageBucket: 'boa-koss.firebasestorage.app',
+      );
+    }
+    return const FirebaseOptions(
+      apiKey: 'REPLACE_WITH_FIREBASE_API_KEY',
+      appId: 'REPLACE_WITH_FIREBASE_APP_ID',
+      messagingSenderId: 'REPLACE_WITH_SENDER_ID',
+      projectId: 'boa-koss',
+      storageBucket: 'boa-koss.firebasestorage.app',
+    );
+  }
+}
