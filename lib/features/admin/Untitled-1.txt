@@ -1,0 +1,1 @@
+& "C:\Users\HP\AppData\Roaming\npm\firebase.cmd" deploy --only firestore:rules --project boa-koss& "C:\Users\HP\AppData\Roaming\npm\firebase.cmd" deploy --only firestore:rules --project boa-koss

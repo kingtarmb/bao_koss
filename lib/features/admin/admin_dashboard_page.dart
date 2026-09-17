@@ -3,8 +3,25 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
+import '../../shared/firebase_service.dart';
+
 class AdminDashboardPage extends StatelessWidget {
   const AdminDashboardPage({super.key});
+
+  Future<void> _seedMasterData(BuildContext context) async {
+    try {
+      await FirebaseService().ensureMasterData();
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Batches et formations initialisés.')),
+      );
+    } catch (error) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Initialisation impossible : $error')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -101,6 +118,14 @@ class AdminDashboardPage extends StatelessWidget {
             onTap: () {
               // Page formations admin à connecter
             },
+          ),
+
+          _adminAction(
+            context,
+            icon: Icons.cloud_upload_outlined,
+            title: 'Initialiser les données maître',
+            subtitle: 'Créer les 10 batches et formations par défaut',
+            onTap: () => _seedMasterData(context),
           ),
 
           _adminAction(

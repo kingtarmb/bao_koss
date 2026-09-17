@@ -24,6 +24,7 @@ class _RegisterPageState extends State<RegisterPage> {
   final confirm = TextEditingController();
 
   bool phoneMode = true;
+  String role = 'employe';
   bool loading = false;
   String? error;
 
@@ -110,9 +111,7 @@ class _RegisterPageState extends State<RegisterPage> {
     });
 
     try {
-      final email = phoneMode
-          ? _emailFromPhone(value)
-          : value.toLowerCase();
+      final email = phoneMode ? _emailFromPhone(value) : value.toLowerCase();
 
       debugPrint('BÂO-KOSS : création du compte...');
       debugPrint('Identifiant Firebase : $email');
@@ -154,27 +153,32 @@ class _RegisterPageState extends State<RegisterPage> {
               'identifier': value,
               'phone': phoneMode ? value : null,
               'email': phoneMode ? null : value.toLowerCase(),
-              'type': 'ouvrier',
-              'role': 'ouvrier',
+              'type': role,
+              'role': role,
               'createdAt': FieldValue.serverTimestamp(),
               'updatedAt': FieldValue.serverTimestamp(),
             })
-            .timeout(
-              const Duration(seconds: 15),
-            );
+            .timeout(const Duration(seconds: 15));
 
         debugPrint('BÂO-KOSS : profil Firestore créé.');
+        await FirebaseService().ensureDemoData(user.uid, name: fullName);
       } on TimeoutException {
         debugPrint(
           'BÂO-KOSS : délai Firestore dépassé. Le compte Auth existe.',
         );
       } on FirebaseException catch (e) {
-        debugPrint(
-          'BÂO-KOSS : erreur Firestore ${e.code}: ${e.message}',
-        );
+        debugPrint('BÂO-KOSS : erreur Firestore ${e.code}: ${e.message}');
 
         // Le compte Firebase existe déjà.
         // On ne bloque donc pas l'utilisateur indéfiniment.
+      }
+
+      try {
+        await FirebaseService()
+            .ensureDemoData(user.uid, name: fullName)
+            .timeout(const Duration(seconds: 8));
+      } catch (e) {
+        debugPrint('BÂO-KOSS : données démo indisponibles : $e');
       }
 
       if (!mounted) return;
@@ -188,32 +192,10 @@ class _RegisterPageState extends State<RegisterPage> {
       });
 
       // ----------------------------------------------------------
-      // 4. DÉCONNEXION APRÈS INSCRIPTION
-      //
-      // Firebase connecte automatiquement l'utilisateur après
-      // createUserWithEmailAndPassword().
-      //
-      // Nous voulons ici :
-      //
-      // INSCRIPTION → CONNEXION → ACCUEIL
-      // ----------------------------------------------------------
-
-      await FirebaseService().signOut();
-
       if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Compte créé avec succès. Vous pouvez maintenant vous connecter.',
-          ),
-          duration: Duration(seconds: 3),
-        ),
-      );
-
       Navigator.pushNamedAndRemoveUntil(
         context,
-        AppRoutes.login,
+        AppRoutes.editProfile,
         (route) => false,
       );
     } on FirebaseAuthException catch (e) {
@@ -276,9 +258,7 @@ class _RegisterPageState extends State<RegisterPage> {
           padding: const EdgeInsets.all(24),
           child: Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(
-                maxWidth: 460,
-              ),
+              constraints: const BoxConstraints(maxWidth: 460),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -287,18 +267,12 @@ class _RegisterPageState extends State<RegisterPage> {
                   const Text(
                     'Inscription',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 18,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
                   ),
 
                   const SizedBox(height: 28),
 
-                  const LinearProgressIndicator(
-                    value: .33,
-                    minHeight: 5,
-                  ),
+                  const LinearProgressIndicator(value: .33, minHeight: 5),
 
                   const SizedBox(height: 24),
 
@@ -309,6 +283,29 @@ class _RegisterPageState extends State<RegisterPage> {
                       labelText: 'Nom complet',
                       prefixIcon: Icon(Icons.person_outline),
                     ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  DropdownButtonFormField<String>(
+                    initialValue: role,
+                    decoration: const InputDecoration(
+                      labelText: 'Vous êtes',
+                      prefixIcon: Icon(Icons.badge_outlined),
+                    ),
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'agriculteur',
+                        child: Text('Agriculteur'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'employe',
+                        child: Text('Employé'),
+                      ),
+                    ],
+                    onChanged: loading
+                        ? null
+                        : (value) => setState(() => role = value ?? role),
                   ),
 
                   const SizedBox(height: 12),
@@ -347,15 +344,12 @@ class _RegisterPageState extends State<RegisterPage> {
                         ? TextInputType.phone
                         : TextInputType.emailAddress,
                     decoration: InputDecoration(
-                      labelText:
-                          phoneMode ? 'Téléphone' : 'E-mail',
+                      labelText: phoneMode ? 'Téléphone' : 'E-mail',
                       prefixIcon: Icon(
-                        phoneMode
-                            ? Icons.phone
-                            : Icons.email_outlined,
+                        phoneMode ? Icons.phone : Icons.email_outlined,
                       ),
                       hintText: phoneMode
-                          ? 'Ex. 90120278'
+                          ? 'Ex. 60606060'
                           : 'Ex. nom@email.com',
                     ),
                   ),
@@ -394,9 +388,7 @@ class _RegisterPageState extends State<RegisterPage> {
                       ),
                       child: Text(
                         error!,
-                        style: const TextStyle(
-                          color: Colors.red,
-                        ),
+                        style: const TextStyle(color: Colors.red),
                       ),
                     ),
                   ],
@@ -436,9 +428,7 @@ class _RegisterPageState extends State<RegisterPage> {
                               AppRoutes.login,
                             );
                           },
-                    child: const Text(
-                      'J’ai déjà un compte',
-                    ),
+                    child: const Text('J’ai déjà un compte'),
                   ),
                 ],
               ),

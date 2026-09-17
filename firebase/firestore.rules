@@ -8,7 +8,26 @@ service cloud.firestore {
       allow delete: if isAdmin();
       match /{sub=**} { allow read, write: if signedIn() && (request.auth.uid == uid || isAdmin()); }
     }
-    match /missions/{id} { allow read: if signedIn(); allow create: if signedIn(); allow update: if signedIn() && (resource.data.farmerId == request.auth.uid || isAdmin()); allow delete: if isAdmin(); }
+    match /missions/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn();
+      allow update: if signedIn() && (
+        isAdmin() ||
+        resource.data.farmerId == request.auth.uid ||
+        (
+          resource.data.status == 'published' &&
+          request.resource.data.workerId == request.auth.uid &&
+          request.resource.data.status == 'accepted' &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['workerId', 'workerEmail', 'status', 'acceptedAt'])
+        ) ||
+        (
+          resource.data.workerId == request.auth.uid &&
+          request.resource.data.status in ['in_progress', 'completed'] &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'checkinAt', 'checkoutAt'])
+        )
+      );
+      allow delete: if isAdmin();
+    }
     match /attendance/{id} { allow create: if signedIn(); allow read: if signedIn() && (resource.data.userId == request.auth.uid || isAdmin()); allow update, delete: if isAdmin(); }
     match /payments/{id} { allow read: if signedIn() && (resource.data.userId == request.auth.uid || isAdmin()); allow write: if isAdmin(); }
     match /trainings/{id} { allow read: if signedIn(); allow write: if isAdmin(); }

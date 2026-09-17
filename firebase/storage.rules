@@ -4,6 +4,15 @@ service firebase.storage {
     match /users/{uid}/{allPaths=**} {
       allow read, write: if request.auth != null && (request.auth.uid == uid || firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin');
     }
+    match /profiles/{uid}/{allPaths=**} {
+      allow read, write: if request.auth != null && (request.auth.uid == uid || firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin');
+    }
+    match /incidents/{uid}/{allPaths=**} {
+      allow read, write: if request.auth != null && (request.auth.uid == uid || firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin');
+    }
+    match /attendance/{uid}/{allPaths=**} {
+      allow read, write: if request.auth != null && (request.auth.uid == uid || firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin');
+    }
     match /missions/{missionId}/{allPaths=**} { allow read, write: if request.auth != null; }
     match /{allPaths=**} { allow read, write: if false; }
   }

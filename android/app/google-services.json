@@ -12,7 +12,12 @@
           "package_name": "com.example.bao_koss"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "692244658942-fmce3js4fl1in4g9pluf86qml98t6953.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyAiFJtUTtYWAxCRdNjctFmt8Z8vsih4t_M"
@@ -20,7 +25,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "692244658942-fmce3js4fl1in4g9pluf86qml98t6953.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "692244658942-1qsfme5sco15e9nf0pnfnkhscibi4fs9.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.baoKoss"
+              }
+            }
+          ]
         }
       }
     }

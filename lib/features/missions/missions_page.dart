@@ -27,6 +27,22 @@ class MissionsPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Mes missions'),
+        actions: [
+          StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+            stream: service.userProfile(uid),
+            builder: (context, snapshot) {
+              final role = snapshot.data?.data()?['role']?.toString();
+              if (role != 'agriculteur' && role != 'admin') {
+                return const SizedBox.shrink();
+              }
+              return IconButton(
+                tooltip: 'Créer une mission',
+                onPressed: () => _newMission(context),
+                icon: const Icon(Icons.add),
+              );
+            },
+          ),
+        ],
       ),
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: service.missions
@@ -70,96 +86,112 @@ class MissionsPage extends StatelessWidget {
                 status == 'published';
           }).toList();
 
-          return ListView(
-            padding: const EdgeInsets.all(14),
-            children: [
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  onPressed: () => _newMission(context),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Ajouter une nouvelle mission'),
-                ),
-              ),
+          final upcoming = docs.where((doc) {
+            final data = doc.data();
+            final status = data['status']?.toString() ?? 'published';
+            return status == 'published' ||
+                (data['workerId']?.toString() == uid && status == 'accepted');
+          }).toList();
+          final active = docs.where((doc) {
+            final data = doc.data();
+            return data['workerId']?.toString() == uid && data['status'] == 'in_progress';
+          }).toList();
+          final completed = docs.where((doc) {
+            final data = doc.data();
+            return data['workerId']?.toString() == uid &&
+                (data['status'] == 'completed' || data['status'] == 'validated');
+          }).toList();
 
-              const SizedBox(height: 12),
-
-              if (docs.isEmpty)
-                const Card(
-                  child: Padding(
-                    padding: EdgeInsets.all(24),
-                    child: Column(
-                      children: [
-                        Icon(
-                          Icons.work_off_outlined,
-                          size: 48,
-                        ),
-                        SizedBox(height: 12),
-                        Text(
-                          'Aucune mission réelle pour le moment.',
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
+          return DefaultTabController(
+            length: 3,
+            child: Column(
+              children: [
+                const Material(
+                  color: Colors.transparent,
+                  child: TabBar(
+                    tabs: [
+                      Tab(text: 'À venir'),
+                      Tab(text: 'En cours'),
+                      Tab(text: 'Terminées'),
+                    ],
                   ),
                 ),
-
-              ...docs.map(
-                (doc) {
-                  final data = doc.data();
-
-                  final title =
-                      data['title']?.toString() ?? 'Mission sans titre';
-
-                  final location =
-                      data['location']?.toString() ?? 'Lieu non renseigné';
-
-                  final date =
-                      data['date']?.toString() ?? 'Date non renseignée';
-
-                  final status =
-                      data['status']?.toString() ?? 'published';
-
-                  final budget = data['budget'];
-
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 10),
-                    child: ListTile(
-                      onTap: () {
-                        Navigator.pushNamed(
-                          context,
-                          AppRoutes.missionDetail,
-                          arguments: doc.id,
-                        );
-                      },
-                      leading: const CircleAvatar(
-                        child: Icon(Icons.agriculture),
-                      ),
-                      title: Text(
-                        title,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      subtitle: Padding(
-                        padding: const EdgeInsets.only(top: 5),
-                        child: Text(
-                          '$location\n$date\nBudget : ${budget ?? 0} FCFA',
-                        ),
-                      ),
-                      isThreeLine: true,
-                      trailing: _StatusChip(status: status),
-                    ),
-                  );
-                },
-              ),
-            ],
+                Expanded(
+                  child: TabBarView(
+                    children: [
+                      _missionList(context, upcoming),
+                      _missionList(context, active),
+                      _missionList(context, completed),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           );
         },
       ),
       bottomNavigationBar: const BaoBottomNav(
         selectedIndex: 1,
       ),
+    );
+  }
+
+  Widget _missionList(BuildContext context, List<QueryDocumentSnapshot<Map<String, dynamic>>> docs) {
+    if (docs.isEmpty) {
+      return const Center(
+        child: Text('Aucune mission dans cette catégorie.'),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(14),
+      itemCount: docs.length,
+      itemBuilder: (context, index) {
+        final doc = docs[index];
+        final data = doc.data();
+        final status = data['status']?.toString() ?? 'published';
+        final date = data['date']?.toString() ?? 'Date non renseignée';
+
+        return Card(
+          margin: const EdgeInsets.only(bottom: 10),
+          child: InkWell(
+            onTap: () => Navigator.pushNamed(context, AppRoutes.missionDetail, arguments: doc.id),
+            borderRadius: BorderRadius.circular(18),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 42,
+                    height: 42,
+                    decoration: BoxDecoration(
+                      color: Colors.green.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.agriculture, color: Colors.green),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(data['title']?.toString() ?? 'Mission sans titre', style: const TextStyle(fontWeight: FontWeight.w700)),
+                        const SizedBox(height: 6),
+                        Text(data['location']?.toString() ?? 'Lieu non renseigné', style: const TextStyle(color: Colors.black54)),
+                        const SizedBox(height: 4),
+                        Text('$date • ${data['budget'] ?? 0} FCFA', style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  _StatusChip(status: status),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 

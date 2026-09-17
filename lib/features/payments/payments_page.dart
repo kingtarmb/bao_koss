@@ -10,6 +10,13 @@ import '../../shared/widgets/page_header.dart';
 class PaymentsPage extends StatelessWidget {
   const PaymentsPage({super.key});
 
+  static String _formatAmount(double amount) {
+    return amount.round().toString().replaceAllMapped(
+      RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
+      (match) => '${match[1]} ',
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
@@ -42,8 +49,7 @@ class PaymentsPage extends StatelessWidget {
             const PageHeader(title: 'Mes paiements'),
 
             Expanded(
-              child: StreamBuilder<
-                  QuerySnapshot<Map<String, dynamic>>>(
+              child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
                 stream: FirebaseFirestore.instance
                     .collection('payments')
                     .where('userId', isEqualTo: user.uid)
@@ -63,43 +69,58 @@ class PaymentsPage extends StatelessWidget {
                     );
                   }
 
-                  if (snapshot.connectionState ==
-                      ConnectionState.waiting) {
-                    return const Center(
-                      child: CircularProgressIndicator(),
-                    );
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
                   }
 
                   final documents = snapshot.data?.docs ?? [];
 
+                  final paid = documents
+                      .where((doc) => _isPaid(doc.data()['status']))
+                      .fold<double>(
+                        0,
+                        (total, doc) =>
+                            total + _readAmount(doc.data()['amount']),
+                      );
+                  final pending = documents
+                      .where((doc) => !_isPaid(doc.data()['status']))
+                      .fold<double>(
+                        0,
+                        (total, doc) =>
+                            total + _readAmount(doc.data()['amount']),
+                      );
+                  final summary = _PaymentSummary(paid: paid, pending: pending);
+
                   if (documents.isEmpty) {
-                    return const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(24),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.account_balance_wallet_outlined,
-                              size: 64,
-                            ),
-                            SizedBox(height: 16),
-                            Text(
-                              'Aucun paiement enregistré.',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            SizedBox(height: 8),
-                            Text(
-                              'Vos paiements apparaîtront ici après '
-                              'la validation de vos missions.',
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                        ),
+                    final demoPayments = [
+                      (
+                        'Récolte de coton',
+                        30000.0,
+                        'paid',
+                        DateTime(2026, 5, 6),
                       ),
+                      ('Semis de maïs', 25000.0, 'paid', DateTime(2026, 5, 2)),
+                      (
+                        'Entretien champ',
+                        20000.0,
+                        'paid',
+                        DateTime(2026, 5, 15),
+                      ),
+                    ];
+                    return ListView(
+                      padding: const EdgeInsets.all(16),
+                      children: [
+                        const _PaymentSummary(paid: 75000, pending: 0),
+                        const SizedBox(height: 16),
+                        ...demoPayments.map(
+                          (payment) => _PaymentCard(
+                            missionTitle: payment.$1,
+                            amount: payment.$2,
+                            status: payment.$3,
+                            date: payment.$4,
+                          ),
+                        ),
+                      ],
                     );
                   }
 
@@ -113,31 +134,32 @@ class PaymentsPage extends StatelessWidget {
                     return bDate.compareTo(aDate);
                   });
 
-                  return ListView.builder(
+                  return ListView(
                     padding: const EdgeInsets.all(16),
-                    itemCount: documents.length,
-                    itemBuilder: (context, index) {
-                      final data = documents[index].data();
+                    children: [
+                      summary,
+                      const SizedBox(height: 16),
+                      ...documents.map((document) {
+                        final data = document.data();
 
-                      final missionTitle =
-                          data['missionTitle']?.toString() ?? 'Mission';
+                        final missionTitle =
+                            data['missionTitle']?.toString() ?? 'Mission';
 
-                      final amount =
-                          _readAmount(data['amount']);
+                        final amount = _readAmount(data['amount']);
 
-                      final status =
-                          data['status']?.toString() ?? 'en_attente';
+                        final status =
+                            data['status']?.toString() ?? 'en_attente';
 
-                      final date =
-                          _readDate(data['createdAt']);
+                        final date = _readDate(data['createdAt']);
 
-                      return _PaymentCard(
-                        missionTitle: missionTitle,
-                        amount: amount,
-                        status: status,
-                        date: date,
-                      );
-                    },
+                        return _PaymentCard(
+                          missionTitle: missionTitle,
+                          amount: amount,
+                          status: status,
+                          date: date,
+                        );
+                      }),
+                    ],
                   );
                 },
               ),
@@ -145,9 +167,7 @@ class PaymentsPage extends StatelessWidget {
           ],
         ),
       ),
-      bottomNavigationBar: const BaoBottomNav(
-        selectedIndex: 3,
-      ),
+      bottomNavigationBar: const BaoBottomNav(selectedIndex: 3),
     );
   }
 
@@ -169,12 +189,77 @@ class PaymentsPage extends StatelessWidget {
     }
 
     if (value is String) {
-      return DateTime.tryParse(value) ??
-          DateTime.fromMillisecondsSinceEpoch(0);
+      return DateTime.tryParse(value) ?? DateTime.fromMillisecondsSinceEpoch(0);
     }
 
     return DateTime.fromMillisecondsSinceEpoch(0);
   }
+
+  static bool _isPaid(dynamic status) => {
+    'paid',
+    'payé',
+    'paid_out',
+    'completed_payment',
+  }.contains(status?.toString().toLowerCase());
+}
+
+class _PaymentSummary extends StatelessWidget {
+  const _PaymentSummary({required this.paid, required this.pending});
+  final double paid;
+  final double pending;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      Expanded(
+        child: _SummaryItem(
+          label: 'Déjà payé',
+          amount: paid,
+          color: Colors.green,
+        ),
+      ),
+      const SizedBox(width: 10),
+      Expanded(
+        child: _SummaryItem(
+          label: 'À payer',
+          amount: pending,
+          color: Colors.orange,
+        ),
+      ),
+    ],
+  );
+}
+
+class _SummaryItem extends StatelessWidget {
+  const _SummaryItem({
+    required this.label,
+    required this.amount,
+    required this.color,
+  });
+  final String label;
+  final double amount;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(color: color, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '${PaymentsPage._formatAmount(amount)} FCFA',
+            style: const TextStyle(fontWeight: FontWeight.w800),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 class _PaymentCard extends StatelessWidget {
@@ -221,8 +306,7 @@ class _PaymentCard extends StatelessWidget {
 
                 Expanded(
                   child: Column(
-                    crossAxisAlignment:
-                        CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         missionTitle,
@@ -257,11 +341,7 @@ class _PaymentCard extends StatelessWidget {
 
             Row(
               children: [
-                Icon(
-                  statusInfo.icon,
-                  size: 18,
-                  color: statusInfo.color,
-                ),
+                Icon(statusInfo.icon, size: 18, color: statusInfo.color),
 
                 const SizedBox(width: 6),
 
@@ -281,13 +361,10 @@ class _PaymentCard extends StatelessWidget {
   }
 
   static String _formatAmount(double amount) {
-    return amount
-        .round()
-        .toString()
-        .replaceAllMapped(
-          RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
-          (match) => '${match[1]} ',
-        );
+    return amount.round().toString().replaceAllMapped(
+      RegExp(r'(\d)(?=(\d{3})+(?!\d))'),
+      (match) => '${match[1]} ',
+    );
   }
 
   static String _formatDate(DateTime date) {
@@ -295,11 +372,9 @@ class _PaymentCard extends StatelessWidget {
       return 'Date non renseignée';
     }
 
-    final day =
-        date.day.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
 
-    final month =
-        date.month.toString().padLeft(2, '0');
+    final month = date.month.toString().padLeft(2, '0');
 
     return '$day/$month/${date.year}';
   }

@@ -1,11 +1,14 @@
 // JOSTAR BINARY SIGNATURE: 01001010 01001111 01010011 01010100 01000001 01010010
 
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/firebase_bootstrap.dart';
 import '../../core/routes/app_routes.dart';
 import '../../shared/firebase_service.dart';
+import '../../shared/theme/app_theme.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -56,10 +59,67 @@ class _LoginPageState extends State<LoginPage> {
           ? _emailFromPhone(identifier.text)
           : identifier.text.trim();
 
-      await FirebaseService().signInEmail(
-        loginId,
-        password.text,
-      );
+      final credential = await FirebaseService()
+          .signInEmail(loginId, password.text)
+          .timeout(const Duration(seconds: 20));
+
+      final user = credential.user;
+      if (user != null) {
+        // L'authentification ne doit pas échouer parce que le profil
+        // Firestore n'est pas encore disponible hors ligne.
+        try {
+          final profile = await FirebaseService()
+              .getUserProfile(user.uid)
+              .timeout(const Duration(seconds: 10));
+          final profileData = profile.data() ?? {};
+          final profileName = profileData['name']?.toString().trim();
+          if (profileName != null &&
+              profileName.isNotEmpty &&
+              user.displayName != profileName) {
+            await user.updateDisplayName(profileName);
+          }
+
+          await FirebaseService().ensureDemoMissions(
+            user.uid,
+            profileName ?? 'Agriculteur de test',
+          );
+          await FirebaseService().ensureDemoData(user.uid, name: profileName);
+
+          if (!mounted) return;
+          setState(() => loading = false);
+          final complete =
+              [
+                'name',
+                'role',
+                'village',
+                'canton',
+                'subPrefecture',
+                'department',
+              ].every(
+                (key) =>
+                    profileData[key]?.toString().trim().isNotEmpty ?? false,
+              );
+          Navigator.pushReplacementNamed(
+            context,
+            complete ? AppRoutes.home : AppRoutes.editProfile,
+          );
+          return;
+        } on FirebaseException catch (e) {
+          debugPrint(
+            'Profil Firestore indisponible (${e.code}) : ${e.message}',
+          );
+        } on TimeoutException {
+          debugPrint('Profil Firestore indisponible : délai dépassé.');
+        }
+
+        try {
+          await FirebaseService()
+              .ensureDemoData(user.uid)
+              .timeout(const Duration(seconds: 8));
+        } catch (e) {
+          debugPrint('Données démo indisponibles : $e');
+        }
+      }
 
       if (!mounted) return;
 
@@ -67,16 +127,20 @@ class _LoginPageState extends State<LoginPage> {
         loading = false;
       });
 
-      Navigator.pushReplacementNamed(
-        context,
-        AppRoutes.home,
-      );
+      Navigator.pushReplacementNamed(context, AppRoutes.home);
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
 
       setState(() {
         loading = false;
         error = _firebaseMessage(e.code);
+      });
+    } on TimeoutException {
+      if (!mounted) return;
+
+      setState(() {
+        loading = false;
+        error = 'Connexion Internet indisponible. Vérifiez votre réseau.';
       });
     } catch (e) {
       if (!mounted) return;
@@ -125,11 +189,7 @@ class _LoginPageState extends State<LoginPage> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'E-mail de réinitialisation envoyé.',
-          ),
-        ),
+        const SnackBar(content: Text('E-mail de réinitialisation envoyé.')),
       );
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
@@ -155,9 +215,7 @@ class _LoginPageState extends State<LoginPage> {
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: ConstrainedBox(
-              constraints: const BoxConstraints(
-                maxWidth: 460,
-              ),
+              constraints: const BoxConstraints(maxWidth: 460),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -173,11 +231,18 @@ class _LoginPageState extends State<LoginPage> {
 
                   const SizedBox(height: 6),
 
-                  const CircleAvatar(
-                    radius: 42,
-                    child: Icon(
+                  Container(
+                    width: 92,
+                    height: 92,
+                    decoration: BoxDecoration(
+                      color: AppTheme.beige,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppTheme.orange, width: 4),
+                    ),
+                    child: const Icon(
                       Icons.person,
                       size: 48,
+                      color: AppTheme.green,
                     ),
                   ),
 
@@ -186,10 +251,7 @@ class _LoginPageState extends State<LoginPage> {
                   const Text(
                     'Connexion',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 18,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 20),
                   ),
 
                   const SizedBox(height: 24),
@@ -226,9 +288,7 @@ class _LoginPageState extends State<LoginPage> {
                     decoration: InputDecoration(
                       labelText: phoneMode ? 'Téléphone' : 'E-mail',
                       prefixIcon: Icon(
-                        phoneMode
-                            ? Icons.phone
-                            : Icons.email_outlined,
+                        phoneMode ? Icons.phone : Icons.email_outlined,
                       ),
                     ),
                   ),
@@ -240,9 +300,7 @@ class _LoginPageState extends State<LoginPage> {
                     obscureText: true,
                     decoration: const InputDecoration(
                       labelText: 'Mot de passe',
-                      prefixIcon: Icon(
-                        Icons.lock_outline,
-                      ),
+                      prefixIcon: Icon(Icons.lock_outline),
                     ),
                   ),
 
@@ -251,9 +309,7 @@ class _LoginPageState extends State<LoginPage> {
                       alignment: Alignment.centerRight,
                       child: TextButton(
                         onPressed: loading ? null : _resetPassword,
-                        child: const Text(
-                          'Mot de passe oublié ?',
-                        ),
+                        child: const Text('Mot de passe oublié ?'),
                       ),
                     ),
 
@@ -277,31 +333,21 @@ class _LoginPageState extends State<LoginPage> {
                         ? const SizedBox(
                             width: 22,
                             height: 22,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                            ),
+                            child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Text(
-                            'Se connecter',
-                          ),
+                        : const Text('Se connecter'),
                   ),
 
                   const SizedBox(height: 12),
 
                   const Row(
                     children: [
-                      Expanded(
-                        child: Divider(),
-                      ),
+                      Expanded(child: Divider()),
                       Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: 10,
-                        ),
+                        padding: EdgeInsets.symmetric(horizontal: 10),
                         child: Text('ou'),
                       ),
-                      Expanded(
-                        child: Divider(),
-                      ),
+                      Expanded(child: Divider()),
                     ],
                   ),
 
@@ -311,22 +357,14 @@ class _LoginPageState extends State<LoginPage> {
                     onPressed: loading
                         ? null
                         : () {
-                            Navigator.pushNamed(
-                              context,
-                              AppRoutes.register,
-                            );
+                            Navigator.pushNamed(context, AppRoutes.register);
                           },
-                    child: const Text(
-                      "S'inscrire",
-                    ),
+                    child: const Text("S'inscrire"),
                   ),
 
                   const SizedBox(height: 18),
 
-                  const Text(
-                    'USSD : *XXX#',
-                    textAlign: TextAlign.center,
-                  ),
+                  const Text('USSD : *125#', textAlign: TextAlign.center),
                 ],
               ),
             ),
