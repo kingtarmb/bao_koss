@@ -18,3 +18,4 @@ web/.dart_tool/
 hs_err_pid*
 replay_pid*
 lib/firebase_options.dart
+*.hprof
